@@ -1,4 +1,7 @@
+#![allow(dead_code)]
 use std::{fs::File, io::prelude::*};
+
+mod rayt;
 
 struct Color([f64; 3]);
 const IMAGE_WIDTH: u32 = 200;
