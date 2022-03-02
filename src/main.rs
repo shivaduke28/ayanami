@@ -23,7 +23,6 @@ fn save_texture(){
     save_ppm(String::from("render.ppm"), &pixels).unwrap();
 }
 
-
 fn save_ppm(filename: String, pixels: &[Color]) -> std::io::Result<()> {
     let mut file = File::create(filename)?;
     writeln!(file, "P3")?;
