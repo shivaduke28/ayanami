@@ -1,4 +1,5 @@
 use crate::rayt::*;
+use rand::prelude::*;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Float3([f64; 3]);
@@ -7,11 +8,66 @@ pub type Color = Float3;
 pub type Vec3 = Float3;
 pub type Point3 = Float3;
 
+// basic
 impl Float3 {
     pub const fn new(x: f64, y: f64, z: f64) -> Self {
         Self([x, y, z])
     }
 
+    pub fn x(&self) -> f64 {
+        self.0[0]
+    }
+    pub fn y(&self) -> f64 {
+        self.0[1]
+    }
+    pub fn z(&self) -> f64 {
+        self.0[2]
+    }
+
+    pub const fn xaxis() -> Self {
+        Self::new(1.0, 0.0, 0.0)
+    }
+    pub const fn yaxis() -> Self {
+        Self::new(0.0, 1.0, 0.0)
+    }
+    pub const fn zaxis() -> Self {
+        Self::new(0.0, 0.0, 1.0)
+    }
+}
+
+// color
+impl Float3 {
+    pub fn r(&self) -> u8 {
+        (255.0 * self.x().min(1.0).max(0.0)) as u8
+    }
+    pub fn g(&self) -> u8 {
+        (255.0 * self.y().min(1.0).max(0.0)) as u8
+    }
+    pub fn b(&self) -> u8 {
+        (255.0 * self.z().min(1.0).max(0.0)) as u8
+    }
+
+    pub fn from_rgb(r: u8, g: u8, b: u8) -> Self {
+        Self::new(r as f64 / 255.0, b as f64 / 255.0, g as f64 / 255.0)
+    }
+
+    pub fn to_rgb(&self) -> [u8; 3] {
+        [self.r(), self.g(), self.b()]
+    }
+
+    pub fn from_hex(hex: &[u8; 6]) -> Self {
+        if let Ok(hex_str) = std::str::from_utf8(hex) {
+            let r = u8::from_str_radix(&hex_str[0..2], 16).unwrap();
+            let g = u8::from_str_radix(&hex_str[2..4], 16).unwrap();
+            let b = u8::from_str_radix(&hex_str[4..6], 16).unwrap();
+            Self::from_rgb(r, g, b)
+        } else {
+            panic!()
+        }
+    }
+}
+
+impl Float3 {
     pub const fn zero() -> Self {
         Self([0.0; 3])
     }
@@ -25,12 +81,11 @@ impl Float3 {
     }
 
     pub fn sqrt(&self) -> Self {
-        // self.0は[f64; 3]
-        Self::from_iter(self.0.iter().map(|x| x.sqrt()))
+        Self::from_iter(self.iter().map(|x| x.sqrt()))
     }
 
     pub fn near_zero(&self) -> bool {
-        self.0.iter().all(|x| x.abs() < EPS)
+        self.iter().all(|x| x.abs() < EPS)
     }
 
     pub fn to_array(&self) -> [f64; 3] {
@@ -43,6 +98,38 @@ impl Float3 {
 
     pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, f64> {
         self.0.iter_mut()
+    }
+
+    pub fn dot(&self, rhs: Self) -> f64 {
+        let l = self.0;
+        let r = rhs.0;
+        l[0] * r[0] + l[1] * r[1] + l[2] * r[2]
+    }
+
+    pub fn cross(&self, rhs: Self) -> Self {
+        let l = self.0;
+        let r = rhs.0;
+        Self([
+            l[1] * r[2] - l[2] * r[1],
+            l[2] * r[0] - l[0] * r[2],
+            l[0] * r[1] - l[1] * r[0],
+        ])
+    }
+
+    pub fn length_squared(&self) -> f64 {
+        self.dot(*self)
+    }
+
+    pub fn length(&self) -> f64 {
+        self.length_squared().sqrt()
+    }
+
+    pub fn normalize(&self) -> Self {
+        *self / self.length()
+    }
+
+    pub fn lerp(&self, v: Self, t: f64) -> Self {
+        *self + (v - *self) * t
     }
 }
 
@@ -79,9 +166,7 @@ impl std::ops::AddAssign for Float3 {
 impl std::ops::Sub for Float3 {
     type Output = Self;
     fn sub(self, rhs: Self) -> Self {
-        let l = self.0;
-        let r = rhs.0;
-        Self([l[0] - r[0], l[1] - r[1], l[2] - r[2]])
+        Self::new(self.x() - rhs.x(), self.y() - rhs.y(), self.z() - rhs.y())
     }
 }
 
@@ -143,35 +228,15 @@ impl std::ops::DivAssign<f64> for Float3 {
 }
 
 impl Float3 {
-    pub fn dot(&self, rhs: Self) -> f64 {
-        let l = self.0;
-        let r = rhs.0;
-        l[0] * r[0] + l[1] * r[1] + l[2] * r[2]
+    pub fn random() -> Self {
+        Self::new(random::<f64>(), random::<f64>(), random::<f64>())
     }
 
-    pub fn cross(&self, rhs: Self) -> Self {
-        let l = self.0;
-        let r = rhs.0;
-        Self([
-            l[1] * r[2] - l[2] * r[1],
-            l[2] * r[0] - l[0] * r[2],
-            l[0] * r[1] - l[1] * r[0],
-        ])
+    pub fn random_full() -> Self {
+        Self::full(random::<f64>())
     }
 
-    pub fn length_squared(&self) -> f64 {
-        self.dot(*self)
-    }
-
-    pub fn length(&self) -> f64 {
-        self.length_squared().sqrt()
-    }
-
-    pub fn normalize(&self) -> Self {
-        *self / self.length()
-    }
-
-    pub fn lerp(&self, v: Self, t: f64) -> Self {
-        *self + (v - *self) * t
+    pub fn random_limit(min: f64, max: f64) -> Self {
+        Self::from_iter(Self::random().iter().map(|x| min + x * (max - min)))
     }
 }
