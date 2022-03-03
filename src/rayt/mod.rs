@@ -5,5 +5,9 @@ pub const EPS: f64 = 1e-6;
 
 mod float3;
 mod quat;
+mod ray;
+mod camera;
 pub use self::float3::{Color, Float3, Point3, Vec3};
 pub use self::quat::Quat;
+pub use self::ray::Ray;
+pub use self::camera::Camera;

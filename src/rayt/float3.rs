@@ -2,7 +2,7 @@ use crate::rayt::*;
 use rand::prelude::*;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub struct Float3([f64; 3]);
+pub struct Float3(pub [f64; 3]);
 
 pub type Color = Float3;
 pub type Vec3 = Float3;
@@ -166,7 +166,7 @@ impl std::ops::AddAssign for Float3 {
 impl std::ops::Sub for Float3 {
     type Output = Self;
     fn sub(self, rhs: Self) -> Self {
-        Self::new(self.x() - rhs.x(), self.y() - rhs.y(), self.z() - rhs.y())
+        Self::new(self.x() - rhs.x(), self.y() - rhs.y(), self.z() - rhs.z())
     }
 }
 
