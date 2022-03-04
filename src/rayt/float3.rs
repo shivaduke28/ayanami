@@ -212,7 +212,7 @@ impl std::ops::Div<f64> for Float3 {
 
 impl std::ops::Div for Float3 {
     type Output = Self;
-    fn div(self, rhs: Float3) -> Self {
+    fn div(self, rhs: Self) -> Self {
         let l = self.0;
         let r = rhs.0;
         Self([l[0] / r[0], l[1] / r[1], l[2] / r[2]])
