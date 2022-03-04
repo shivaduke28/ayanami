@@ -38,6 +38,8 @@ fn hit_sphere(center: Float3, radius: f64, ray: &Ray) -> f64 {
 }
 
 fn main() {
+    backup();
+
     let camera = Camera::new(
         Vec3::new(4.0, 0.0, 0.0),
         Vec3::new(0.0, 2.0, 0.0),
@@ -49,12 +51,13 @@ fn main() {
         .par_iter_mut()
         .for_each(|(x, y, pixel)| {
             let u = *x as f64 / (IMAGE_WIDTH - 1) as f64;
-            let v = (IMAGE_HEIGHT - 1  - *y) as f64 / (IMAGE_HEIGHT - 1) as f64;
+            let v = (IMAGE_HEIGHT - 1 - *y) as f64 / (IMAGE_HEIGHT - 1) as f64;
             let ray = camera.ray(u, v);
             let rgb = color(&ray).to_rgb();
             pixel[0] = rgb[0];
             pixel[1] = rgb[1];
             pixel[2] = rgb[2];
         });
-    img.save(String::from("render.png")).unwrap();
+    img.save(OUTPUT_FILE_NAME).unwrap();
+    draw_in_window(BACKUP_FILE_NAME, img).unwrap();
 }
