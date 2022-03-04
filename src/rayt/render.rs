@@ -9,6 +9,7 @@ const BACKUP_FILE_NAME: &str = "render_bak.png";
 const IMAGE_WIDTH: u32 = 200;
 const IMAGE_HEIGHT: u32 = 100;
 const SAMPLES_PER_PIXEL: usize = 8;
+const GAMMA_FACTOR: f64 = 2.2;
 
 pub fn backup() {
     let output_path = Path::new(OUTPUT_FILE_NAME);
@@ -67,7 +68,7 @@ pub fn render_aa(scene: impl Scene + Sync) {
         .collect::<Vec<(u32, u32, &mut Rgb<u8>)>>()
         .par_iter_mut()
         .for_each(|(x, y, pixel)| {
-            let pixel_color = (0..scene.spp()).into_iter().fold(Color::zero(), |acc, _| {
+            let mut pixel_color = (0..scene.spp()).into_iter().fold(Color::zero(), |acc, _| {
                 let [rx, ry, _] = Float3::random().to_array();
                 let u = (*x as f64 + rx) / (scene.width() - 1) as f64;
                 let v = ((scene.height() - *y - 1) as f64 + ry) / (scene.height() - 1) as f64;
@@ -75,7 +76,8 @@ pub fn render_aa(scene: impl Scene + Sync) {
                 acc + scene.trace(ray)
             });
 
-            let rgb = (pixel_color / (scene.spp() as f64)).to_rgb();
+            pixel_color /= scene.spp() as f64;
+            let rgb = pixel_color.degamma(GAMMA_FACTOR).to_rgb();
             pixel[0] = rgb[0];
             pixel[1] = rgb[1];
             pixel[2] = rgb[2];

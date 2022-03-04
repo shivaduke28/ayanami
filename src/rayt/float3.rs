@@ -55,6 +55,15 @@ impl Float3 {
         [self.r(), self.g(), self.b()]
     }
 
+    pub fn gamma(&self, factor: f64) -> Self {
+        Self::from_iter(self.iter().map(|x| x.powf(factor)))
+    }
+
+    pub fn degamma(&self, factor: f64) -> Self {
+        let recip = factor.recip();
+        Self::from_iter(self.iter().map(|x| x.powf(recip)))
+    }
+
     pub fn from_hex(hex: &[u8; 6]) -> Self {
         if let Ok(hex_str) = std::str::from_utf8(hex) {
             let r = u8::from_str_radix(&hex_str[0..2], 16).unwrap();
@@ -238,5 +247,16 @@ impl Float3 {
 
     pub fn random_limit(min: f64, max: f64) -> Self {
         Self::from_iter(Self::random().iter().map(|x| min + x * (max - min)))
+    }
+
+    // 球の中に入っていない場合は捨てる
+    // 棄却法という
+    pub fn random_in_unit_sphere() -> Self {
+        loop {
+            let point = Self::random_limit(-1.0, 1.0);
+            if point.length_squared() < 1.0 {
+                return point;
+            }
+        }
     }
 }

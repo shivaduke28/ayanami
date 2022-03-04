@@ -7,11 +7,14 @@ pub struct SimpleScene {
 impl SimpleScene {
     pub fn new() -> Self {
         let mut world = ShapeList::new();
-        let sphere = Sphere::new(Float3::new(0.2, 0.0, -1.0), 0.5);
+        let sphere = Sphere::new(Float3::new(0.0, 0.0, -1.0), 0.5);
         world.push(Box::new(sphere));
 
-        let sphere = Sphere::new(Float3::new(-0.0, 0.2, -1.0), 0.4);
-        world.push(Box::new(sphere));
+        // let sphere = Sphere::new(Float3::new(-0.1, 0.2, -1.0), 0.4);
+        // world.push(Box::new(sphere));
+
+        // let sphere = Sphere::new(Float3::new(0.5, 0.1, -1.0), 0.3);
+        // world.push(Box::new(sphere));
 
         world.push(Box::new(Sphere::new(Float3::new(0.0, -100.5, -1.0), 100.0)));
 
@@ -34,11 +37,13 @@ impl Scene for SimpleScene {
     }
 
     fn trace(&self, ray: Ray) -> Color {
-        if let Some(hit) = self.world.hit(&ray, 0.0, 100.0){
-            let n = hit.n;
-            return (n + Float3::one()) * 0.5;
+        if let Some(hit) = self.world.hit(&ray, 0.001, f64::MAX){
+            let target = hit.p + hit.n + Vec3::random_in_unit_sphere();
+            self.trace(Ray::new(hit.p, target - hit.p)) * 0.5
         }
-        self.background_color(ray.direction)
+        else {
+            self.background_color(ray.direction)
+        }
     }
 }
 
