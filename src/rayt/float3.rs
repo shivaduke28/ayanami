@@ -140,6 +140,12 @@ impl Float3 {
     pub fn lerp(&self, v: Self, t: f64) -> Self {
         *self + (v - *self) * t
     }
+
+    // normalは長さ１
+    // selfは入射する向き
+    pub fn reflect(&self, normal: Self) -> Self {
+        *self - normal * 2.0 * self.dot(normal)
+    }
 }
 
 // イテレータから作る

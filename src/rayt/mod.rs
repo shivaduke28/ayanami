@@ -15,3 +15,4 @@ pub use self::ray::Ray;
 pub use self::camera::Camera;
 pub use self::window::*;
 pub use self::render::*;
+pub use std::sync::Arc;
