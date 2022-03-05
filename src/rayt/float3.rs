@@ -141,10 +141,24 @@ impl Float3 {
         *self + (v - *self) * t
     }
 
-    // normalは長さ１
     // selfは入射する向き
+    // normalは長さ１
     pub fn reflect(&self, normal: Self) -> Self {
         *self - normal * 2.0 * self.dot(normal)
+    }
+
+    // selfは入射する向き
+    // normalは長さ１
+    // eta = 反射率の割合（入射/反射）
+    pub fn refract(&self, normal: Self, eta: f64) -> Option<Float3> {
+        let i = self.normalize();
+        let ndoti = i.dot(normal);
+        let k = 1.0 - eta * eta * (1.0 - ndoti * ndoti);
+        if k < 0.0 {
+            None
+        } else {
+            Some(i * eta - normal * (eta * ndoti + k.sqrt()))
+        }
     }
 }
 

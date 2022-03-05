@@ -1,4 +1,5 @@
 use crate::rayt::*;
+use crate::scene::*;
 
 pub struct SimpleScene {
     world: ShapeList,
@@ -15,7 +16,17 @@ impl SimpleScene {
         world.push(Box::new(Sphere::new(
             Float3::new(-0.6, 0.0, -1.0),
             0.5,
-            Arc::new(Metal::new(Color::new(0.8, 0.8, 0.8), 1.0)),
+            Arc::new(Dielectric::new(1.5)),
+        )));
+        world.push(Box::new(Sphere::new(
+            Float3::new(-0.6, 0.0, -1.0),
+            -0.45,
+            Arc::new(Dielectric::new(1.5)),
+        )));
+        world.push(Box::new(Sphere::new(
+            Float3::new(-0.0, -0.35, -0.8),
+            0.15,
+            Arc::new(Metal::new(Color::new(0.8, 0.8, 0.8), 0.2)),
         )));
         world.push(Box::new(Sphere::new(
             Float3::new(0.0, -100.5, -1.0),
@@ -61,84 +72,6 @@ impl SceneWithDepth for SimpleScene {
     }
 }
 
-struct Sphere {
-    center: Float3,
-    radius: f64,
-    material: Arc<dyn Material>,
-}
-
-impl Sphere {
-    fn new(center: Float3, radius: f64, material: Arc<dyn Material>) -> Self {
-        Self {
-            center,
-            radius,
-            material,
-        }
-    }
-}
-
-impl Shape for Sphere {
-    fn hit(&self, ray: &Ray, t0: f64, t1: f64) -> Option<HitInfo> {
-        let oc = ray.origin - self.center;
-        let d = ray.direction;
-        let a = d.length_squared();
-        let b = 2.0 * d.dot(oc);
-        let c = oc.length_squared() - self.radius * self.radius;
-        let d = b * b - 4.0 * a * c;
-        if d > 0.0 {
-            let d_sqrt = d.sqrt();
-            let t = (-b - d_sqrt) / (2.0 * a);
-            if t0 < t && t < t1 {
-                let p = ray.at(t);
-                let n = (p - self.center) / self.radius;
-                let hit = HitInfo::new(t, p, n, Arc::clone(&self.material));
-                return Some(hit);
-            }
-
-            let t = (-b + d_sqrt) / (2.0 * a);
-            if t0 < t && t < t1 {
-                let p = ray.at(t);
-                let n = (p - self.center) / self.radius;
-                let hit = HitInfo::new(t, p, n, Arc::clone(&self.material));
-                return Some(hit);
-            }
-        }
-        None
-    }
-}
-
-struct ShapeList {
-    pub objects: Vec<Box<dyn Shape>>,
-}
-
-impl ShapeList {
-    pub fn new() -> Self {
-        ShapeList {
-            objects: Vec::new(),
-        }
-    }
-
-    pub fn push(&mut self, object: Box<dyn Shape>) {
-        self.objects.push(object);
-    }
-}
-
-impl Shape for ShapeList {
-    fn hit(&self, ray: &Ray, t0: f64, t1: f64) -> Option<HitInfo> {
-        let mut hit_info: Option<HitInfo> = None;
-        let mut closest_so_far = t1;
-
-        for object in &(self.objects) {
-            if let Some(info) = object.hit(ray, t0, closest_so_far) {
-                closest_so_far = info.t;
-                hit_info = Some(info);
-            }
-        }
-
-        hit_info
-    }
-}
-
 pub struct HitInfo {
     pub t: f64,
     pub p: Float3,
@@ -147,13 +80,9 @@ pub struct HitInfo {
 }
 
 impl HitInfo {
-    fn new(t: f64, p: Float3, n: Float3, m: Arc<dyn Material>) -> Self {
+    pub fn new(t: f64, p: Float3, n: Float3, m: Arc<dyn Material>) -> Self {
         HitInfo { t, p, n, m }
     }
-}
-
-pub trait Shape: Sync {
-    fn hit(&self, ray: &Ray, t0: f64, t1: f64) -> Option<HitInfo>;
 }
 
 pub trait Material: Sync + Send {
@@ -161,8 +90,8 @@ pub trait Material: Sync + Send {
 }
 
 pub struct ScatterInfo {
-    ray: Ray,
-    albedo: Color,
+    pub ray: Ray,
+    pub albedo: Color,
 }
 
 impl ScatterInfo {
@@ -171,12 +100,12 @@ impl ScatterInfo {
     }
 }
 
-struct Lambertian {
+pub struct Lambertian {
     albedo: Color,
 }
 
 impl Lambertian {
-    fn new(albedo: Color) -> Self {
+    pub fn new(albedo: Color) -> Self {
         Lambertian { albedo }
     }
 }
@@ -189,13 +118,13 @@ impl Material for Lambertian {
     }
 }
 
-struct Metal {
+pub struct Metal {
     albedo: Color,
     fuzz: f64,
 }
 
 impl Metal {
-    fn new(albedo: Color, fuzz: f64) -> Self {
+    pub fn new(albedo: Color, fuzz: f64) -> Self {
         Self { albedo, fuzz }
     }
 }
@@ -210,4 +139,45 @@ impl Material for Metal {
             None
         }
     }
+}
+
+pub struct Dielectric {
+    ri: f64,
+}
+
+impl Dielectric {
+    pub const fn new(ri: f64) -> Self {
+        Self { ri }
+    }
+}
+
+impl Material for Dielectric {
+    fn scatter(&self, ray: &Ray, hit: &HitInfo) -> Option<ScatterInfo> {
+        // 反射方向
+        let reflected = ray.direction.reflect(hit.n);
+        let (outward_normal, eta, cosine) = {
+            let dot = ray.direction.dot(hit.n);
+            if ray.direction.dot(hit.n) > 0.0 {
+                (-hit.n, self.ri, self.ri * dot / ray.direction.length())
+            } else {
+                (hit.n, self.ri.recip(), -dot / ray.direction.length())
+            }
+        };
+        if let Some(refracted) = ray.direction.refract(outward_normal, eta) {
+            let rand = rand::random::<f64>();
+            if rand > schilick(self.ri, cosine) {
+                return Some(ScatterInfo::new(Ray::new(hit.p, refracted), Color::one()));
+            }
+        }
+        Some(ScatterInfo::new(Ray::new(hit.p, reflected), Color::one()))
+    }
+}
+
+fn schilick(ri: f64, cosine: f64) -> f64 {
+    let r0 = ((1.0 - ri) / (1.0 + ri)).powi(2);
+    r0 + (1.0 - r0) * (1.0 - cosine).powi(5)
+}
+
+fn schlick_lerp(f0: Float3, f90: Float3, cosine: f64) -> Float3 {
+    f0 + (f90 - f0) * (1.0 - cosine).powi(5)
 }
