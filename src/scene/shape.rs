@@ -35,7 +35,8 @@ impl Shape for Sphere {
             if t0 < t && t < t1 {
                 let p = ray.at(t);
                 let n = (p - self.center) / self.radius;
-                let hit = HitInfo::new(t, p, n, Arc::clone(&self.material));
+                // todo: uv
+                let hit = HitInfo::new(t, p, n, Arc::clone(&self.material), 0.0, 0.0);
                 return Some(hit);
             }
 
@@ -43,7 +44,8 @@ impl Shape for Sphere {
             if t0 < t && t < t1 {
                 let p = ray.at(t);
                 let n = (p - self.center) / self.radius;
-                let hit = HitInfo::new(t, p, n, Arc::clone(&self.material));
+                // todo: uv
+                let hit = HitInfo::new(t, p, n, Arc::clone(&self.material), 0.0, 0.0);
                 return Some(hit);
             }
         }
@@ -84,6 +86,7 @@ impl Shape for ShapeList {
 }
 
 pub struct ShapeBuilder {
+    texture: Option<Box<dyn Texture>>,
     material: Option<Arc<dyn Material>>,
     shape: Option<Box<dyn Shape>>,
 }
@@ -91,17 +94,23 @@ pub struct ShapeBuilder {
 impl ShapeBuilder {
     pub fn new() -> Self {
         Self {
+            texture: None,
             material: None,
             shape: None,
         }
     }
     pub fn lambertian(mut self, albedo: Color) -> Self {
-        self.material = Some(Arc::new(Lambertian::new(albedo)));
+        self.material = Some(Arc::new(Lambertian::new(Box::new(ColorTexture::new(
+            albedo,
+        )))));
         self
     }
 
     pub fn metal(mut self, albedo: Color, fuzz: f64) -> Self {
-        self.material = Some(Arc::new(Metal::new(albedo, fuzz)));
+        self.material = Some(Arc::new(Metal::new(
+            Box::new(ColorTexture::new(albedo)),
+            fuzz,
+        )));
         self
     }
 

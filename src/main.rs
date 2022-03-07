@@ -7,5 +7,5 @@ use crate::rayt::*;
 use crate::scene::*;
 
 fn main() {
-    render_aa(RandomScene::new());
+    render_aa(SimpleScene::new());
 }

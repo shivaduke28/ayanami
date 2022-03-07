@@ -11,28 +11,36 @@ impl SimpleScene {
         world.push(Box::new(Sphere::new(
             Float3::new(0.6, 0.0, -1.0),
             0.5,
-            Arc::new(Lambertian::new(Color::new(0.1, 0.2, 0.5))),
+            Arc::new(Lambertian::new(Box::new(ColorTexture::new(Color::new(
+                0.1, 0.2, 0.5,
+            ))))),
         )));
         world.push(Box::new(Sphere::new(
             Float3::new(-0.6, 0.0, -1.0),
             0.5,
-            Arc::new(Dielectric::new(1.5)),
+            Arc::new(Metal::new(
+                Box::new(ColorTexture::new(Color::new(0.5, 0.5, 0.5))),
+                0.5,
+            )),
         )));
-        world.push(Box::new(Sphere::new(
-            Float3::new(-0.6, 0.0, -1.0),
-            -0.45,
-            Arc::new(Dielectric::new(1.5)),
-        )));
-        world.push(Box::new(Sphere::new(
-            Float3::new(-0.0, -0.35, -0.8),
-            0.15,
-            Arc::new(Metal::new(Color::new(0.8, 0.8, 0.8), 0.2)),
-        )));
+        // world.push(Box::new(Sphere::new(
+        //     Float3::new(-0.6, 0.0, -1.0),
+        //     -0.45,
+        //     Arc::new(Dielectric::new(1.5)),
+        // )));
+        // world.push(Box::new(Sphere::new(
+        //     Float3::new(-0.0, -0.35, -0.8),
+        //     0.15,
+        //     Arc::new(Metal::new(
+        //         Box::new(ColorTexture::new(Color::new(0.8, 0.8, 0.8))),
+        //         0.2,
+        //     )),
+        // )));
         world.push(Box::new(Sphere::new(
             Float3::new(0.0, -100.5, -1.0),
             100.0,
             Arc::new(Lambertian {
-                albedo: Color::new(0.8, 0.8, 0.0),
+                albedo: Box::new(ColorTexture::new(Color::new(0.8, 0.8, 0.0))),
             }),
         )));
 
@@ -77,12 +85,18 @@ pub struct HitInfo {
     pub p: Float3,
     pub n: Float3,
     pub m: Arc<dyn Material>,
+    pub u: f64,
+    pub v: f64,
 }
 
 impl HitInfo {
-    pub fn new(t: f64, p: Float3, n: Float3, m: Arc<dyn Material>) -> Self {
-        HitInfo { t, p, n, m }
+    pub fn new(t: f64, p: Float3, n: Float3, m: Arc<dyn Material>, u: f64, v: f64) -> Self {
+        HitInfo { t, p, n, m, u, v }
     }
+}
+
+pub trait Texture: Sync + Send {
+    fn value(&self, u: f64, v: f64, p: Float3) -> Color;
 }
 
 pub trait Material: Sync + Send {
@@ -101,11 +115,11 @@ impl ScatterInfo {
 }
 
 pub struct Lambertian {
-    albedo: Color,
+    albedo: Box<dyn Texture>,
 }
 
 impl Lambertian {
-    pub fn new(albedo: Color) -> Self {
+    pub fn new(albedo: Box<dyn Texture>) -> Self {
         Lambertian { albedo }
     }
 }
@@ -114,17 +128,17 @@ impl Material for Lambertian {
     fn scatter(&self, _ray: &Ray, hit: &HitInfo) -> Option<ScatterInfo> {
         let r = hit.n + Float3::random_in_unit_sphere();
         let r = Ray::new(hit.p, r);
-        Some(ScatterInfo::new(r, self.albedo))
+        Some(ScatterInfo::new(r, self.albedo.value(hit.u, hit.v, hit.p)))
     }
 }
 
 pub struct Metal {
-    albedo: Color,
+    albedo: Box<dyn Texture>,
     fuzz: f64,
 }
 
 impl Metal {
-    pub fn new(albedo: Color, fuzz: f64) -> Self {
+    pub fn new(albedo: Box<dyn Texture>, fuzz: f64) -> Self {
         Self { albedo, fuzz }
     }
 }
@@ -134,7 +148,10 @@ impl Material for Metal {
         let mut reflected = ray.direction.normalize().reflect(hit.n);
         reflected = reflected + Vec3::random_in_unit_sphere() * self.fuzz;
         if reflected.dot(hit.n) > 0.0 {
-            Some(ScatterInfo::new(Ray::new(hit.p, reflected), self.albedo))
+            Some(ScatterInfo::new(
+                Ray::new(hit.p, reflected),
+                self.albedo.value(hit.u, hit.v, hit.p),
+            ))
         } else {
             None
         }
@@ -180,4 +197,20 @@ fn schilick(ri: f64, cosine: f64) -> f64 {
 
 fn schlick_lerp(f0: Float3, f90: Float3, cosine: f64) -> Float3 {
     f0 + (f90 - f0) * (1.0 - cosine).powi(5)
+}
+
+pub struct ColorTexture {
+    color: Color,
+}
+
+impl ColorTexture {
+    pub const fn new(color: Color) -> Self {
+        Self { color }
+    }
+}
+
+impl Texture for ColorTexture {
+    fn value(&self, u: f64, v: f64, p: Float3) -> Color {
+        self.color
+    }
 }
