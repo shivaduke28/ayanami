@@ -8,42 +8,15 @@ pub struct SimpleScene {
 impl SimpleScene {
     pub fn new() -> Self {
         let mut world = ShapeList::new();
-        world.push(Box::new(Sphere::new(
-            Float3::new(0.6, 0.0, -1.0),
-            0.5,
-            Arc::new(Lambertian::new(Box::new(ImageTexture::new(
-                "resources/shivaduke.jpg",
-                (10.0, 10.0),
-            )))),
-        )));
-        // world.push(Box::new(Sphere::new(
-        //     Float3::new(-0.6, 0.0, -1.0),
-        //     0.5,
-        //     Arc::new(Metal::new(
-        //         Box::new(ColorTexture::new(Color::new(0.5, 0.5, 0.5))),
-        //         0.5,
-        //     )),
-        // )));
         world.push(
             ShapeBuilder::new()
-                .color_texture(Color::full(0.8))
-                .diffuse_light()
-                .sphere(Float3::new(-0.6, 0.0, -1.0), 0.4)
+                .image_texture("resources/shivaduke.jpg", (5.0, 5.0))
+                .lambertian()
+                .sphere(Float3::zero(), 1.0)
+                .transform(Float3::new(1.0, 1.0, 1.0), Quat::unit())
                 .build(),
         );
-        // world.push(Box::new(Sphere::new(
-        //     Float3::new(-0.6, 0.0, -1.0),
-        //     -0.45,
-        //     Arc::new(Dielectric::new(1.5)),
-        // )));
-        // world.push(Box::new(Sphere::new(
-        //     Float3::new(-0.0, -0.35, -0.8),
-        //     0.15,
-        //     Arc::new(Metal::new(
-        //         Box::new(ColorTexture::new(Color::new(0.8, 0.8, 0.8))),
-        //         0.2,
-        //     )),
-        // )));
+
         world.push(Box::new(Sphere::new(
             Float3::new(0.0, -100.5, -1.0),
             100.0,
@@ -51,7 +24,7 @@ impl SimpleScene {
                 albedo: Box::new(CheckerTexture::new(
                     Box::new(ColorTexture::new(Color::new(0.8, 0.8, 0.8))),
                     Box::new(ColorTexture::new(Color::new(0.8, 0.0, 0.0))),
-                    10.0,
+                    4.0,
                 )),
             }),
         )));
@@ -69,7 +42,7 @@ impl SimpleScene {
 
     fn background_color(&self, d: Float3) -> Color {
         let t = 0.5 * (d.normalize().y() + 1.0);
-        Color::one().lerp(Color::new(0.5, 0.7, 1.0), t) * 0.0
+        Color::one().lerp(Color::new(0.5, 0.7, 1.0), t) * 0.5
     }
 }
 

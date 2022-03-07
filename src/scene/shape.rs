@@ -186,18 +186,33 @@ impl ShapeBuilder {
             shape: None,
         }
     }
-    pub fn lambertian(mut self, albedo: Color) -> Self {
-        self.material = Some(Arc::new(Lambertian::new(Box::new(ColorTexture::new(
-            albedo,
-        )))));
+
+    // texture
+    pub fn color_texture(mut self, color: Color) -> Self {
+        self.texture = Some(Box::new(ColorTexture::new(color)));
         self
     }
 
-    pub fn metal(mut self, albedo: Color, fuzz: f64) -> Self {
-        self.material = Some(Arc::new(Metal::new(
-            Box::new(ColorTexture::new(albedo)),
-            fuzz,
-        )));
+    pub fn image_texture(mut self, path: &str, scale: (f64, f64)) -> Self {
+        self.texture = Some(Box::new(ImageTexture::new(path, scale)));
+        self
+    }
+
+    pub fn diffuse_light(mut self) -> Self {
+        self.material = Some(Arc::new(DiffuseLight::new(self.texture.unwrap())));
+        self.texture = None;
+        self
+    }
+
+    pub fn lambertian(mut self) -> Self {
+        self.material = Some(Arc::new(Lambertian::new(self.texture.unwrap())));
+        self.texture = None;
+        self
+    }
+
+    pub fn metal(mut self, fuzz: f64) -> Self {
+        self.material = Some(Arc::new(Metal::new(self.texture.unwrap(), fuzz)));
+        self.texture = None;
         self
     }
 
@@ -213,26 +228,6 @@ impl ShapeBuilder {
             self.material.unwrap(),
         )));
         self.material = None;
-        self
-    }
-
-    pub fn build(self) -> Box<dyn Shape> {
-        self.shape.unwrap()
-    }
-
-    pub fn color_texture(mut self, color: Color) -> Self {
-        self.texture = Some(Box::new(ColorTexture::new(color)));
-        self
-    }
-
-    pub fn image_texture(mut self, path: &str, scale: (f64, f64)) -> Self {
-        self.texture = Some(Box::new(ImageTexture::new(path, scale)));
-        self
-    }
-
-    pub fn diffuse_light(mut self) -> Self {
-        self.material = Some(Arc::new(DiffuseLight::new(self.texture.unwrap())));
-        self.texture = None;
         self
     }
 
@@ -274,5 +269,51 @@ impl ShapeBuilder {
         )));
         self.material = None;
         self
+    }
+
+    pub fn transform(mut self, position: Float3, rotation: Quat) -> Self {
+        self.shape = Some(Box::new(Transform::new(
+            self.shape.unwrap(),
+            position,
+            rotation,
+        )));
+        self
+    }
+
+    pub fn build(self) -> Box<dyn Shape> {
+        self.shape.unwrap()
+    }
+}
+
+pub struct Transform {
+    shape: Box<dyn Shape>,
+    position: Float3,
+    rotation: Quat,
+}
+
+impl Transform {
+    pub fn new(shape: Box<dyn Shape>, position: Float3, rotation: Quat) -> Self {
+        Self {
+            shape,
+            position,
+            rotation,
+        }
+    }
+}
+
+impl Shape for Transform {
+    fn hit(&self, ray: &Ray, t0: f64, t1: f64) -> Option<HitInfo> {
+        let rot_inv = self.rotation.conj();
+        let ray_os = Ray::new(
+            rot_inv.rotate(ray.origin - self.position),
+            rot_inv.rotate(ray.direction),
+        );
+        if let Some(hit) = self.shape.hit(&ray_os, t0, t1) {
+            let p = self.rotation.rotate(hit.p) + self.position;
+            let n = self.rotation.rotate(hit.n);
+            Some(HitInfo { p: p, n: n, ..hit })
+        } else {
+            None
+        }
     }
 }
