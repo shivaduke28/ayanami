@@ -1,5 +1,6 @@
 use crate::rayt::*;
 
+#[derive(Copy, Clone)]
 pub struct Quat(Vec3, f64);
 
 impl Quat {

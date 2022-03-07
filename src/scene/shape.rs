@@ -198,8 +198,14 @@ impl ShapeBuilder {
         self
     }
 
-    pub fn diffuse_light(mut self) -> Self {
-        self.material = Some(Arc::new(DiffuseLight::new(self.texture.unwrap())));
+    // material
+    pub fn material(mut self, material: Arc<dyn Material>) -> Self {
+        self.material = Some(Arc::clone(&material));
+        self
+    }
+
+    pub fn diffuse_light(mut self, intensity: f64) -> Self {
+        self.material = Some(Arc::new(DiffuseLight::new(self.texture.unwrap(), intensity)));
         self.texture = None;
         self
     }
@@ -227,6 +233,12 @@ impl ShapeBuilder {
             radius,
             self.material.unwrap(),
         )));
+        self.material = None;
+        self
+    }
+
+    pub fn cube(mut self) -> Self {
+        self.shape = Some(Box::new(Cube::new(self.material.unwrap())));
         self.material = None;
         self
     }
@@ -271,11 +283,17 @@ impl ShapeBuilder {
         self
     }
 
-    pub fn transform(mut self, position: Float3, rotation: Quat) -> Self {
+    pub fn transform(
+        mut self,
+        position: Option<Float3>,
+        rotation: Option<Quat>,
+        scale: Option<Float3>,
+    ) -> Self {
         self.shape = Some(Box::new(Transform::new(
             self.shape.unwrap(),
             position,
             rotation,
+            scale,
         )));
         self
     }
@@ -287,33 +305,155 @@ impl ShapeBuilder {
 
 pub struct Transform {
     shape: Box<dyn Shape>,
-    position: Float3,
-    rotation: Quat,
+    position: Option<Float3>,
+    rotation: Option<Quat>,
+    scale: Option<Float3>,
 }
 
 impl Transform {
-    pub fn new(shape: Box<dyn Shape>, position: Float3, rotation: Quat) -> Self {
+    pub fn new(
+        shape: Box<dyn Shape>,
+        position: Option<Float3>,
+        rotation: Option<Quat>,
+        scale: Option<Float3>,
+    ) -> Self {
         Self {
             shape,
             position,
             rotation,
+            scale,
         }
+    }
+
+    pub fn translate(mut self, position: Float3) -> Self {
+        let p = self.position.unwrap_or(Float3::zero());
+        self.position = Some(p + position);
+        self
+    }
+
+    pub fn rotate(mut self, rotation: Quat) -> Self {
+        let r = self.rotation.unwrap_or(Quat::unit());
+        self.rotation = Some(rotation * r);
+        self
+    }
+
+    pub fn scale(mut self, scale: Float3) -> Self {
+        let s = self.scale.unwrap_or(Float3::one());
+        self.scale = Some(s * scale);
+        self
+    }
+
+    fn ray_object_space(&self, ray: &Ray) -> Ray {
+        let mut origin = ray.origin;
+        let mut direction = ray.direction;
+        if let Some(pos) = self.position {
+            origin -= pos;
+        }
+        if let Some(rot) = self.rotation {
+            let rot_inv = rot.conj();
+            origin = rot_inv.rotate(origin);
+            direction = rot_inv.rotate(direction);
+        }
+        if let Some(scale) = self.scale {
+            origin = origin / scale;
+            direction = direction / scale;
+        }
+        Ray::new(origin, direction)
+    }
+
+    fn object_to_world(&self, position: Float3) -> Float3 {
+        let mut result = position;
+        if let Some(scale) = self.scale {
+            result = result * scale;
+        }
+        if let Some(rotation) = self.rotation {
+            result = rotation.rotate(result);
+        }
+        if let Some(pos) = self.position {
+            result += pos;
+        }
+
+        result
+    }
+
+    fn object_to_world_normal(&self, normal: Float3) -> Float3 {
+        let mut result = normal;
+        if let Some(scale) = self.scale {
+            result = result * scale;
+        }
+        if let Some(rotation) = self.rotation {
+            result = rotation.rotate(result);
+        }
+        result.normalize()
     }
 }
 
 impl Shape for Transform {
     fn hit(&self, ray: &Ray, t0: f64, t1: f64) -> Option<HitInfo> {
-        let rot_inv = self.rotation.conj();
-        let ray_os = Ray::new(
-            rot_inv.rotate(ray.origin - self.position),
-            rot_inv.rotate(ray.direction),
-        );
+        let ray_os = self.ray_object_space(ray);
         if let Some(hit) = self.shape.hit(&ray_os, t0, t1) {
-            let p = self.rotation.rotate(hit.p) + self.position;
-            let n = self.rotation.rotate(hit.n);
+            let p = self.object_to_world(hit.p);
+            let n = self.object_to_world_normal(hit.n);
             Some(HitInfo { p: p, n: n, ..hit })
         } else {
             None
         }
+    }
+}
+
+pub struct Cube {
+    shapes: ShapeList,
+}
+
+impl Cube {
+    pub fn new(material: Arc<dyn Material>) -> Self {
+        let mut shapes = ShapeList::new();
+        shapes.push(
+            ShapeBuilder::new()
+                .material(Arc::clone(&material))
+                .rect_xy(-1.0, 1.0, -1.0, 1.0, 1.0)
+                .build(),
+        );
+        shapes.push(
+            ShapeBuilder::new()
+                .material(Arc::clone(&material))
+                .rect_xy(-1.0, 1.0, -1.0, 1.0, 1.0)
+                .transform(None, Some(Quat::from_rot_y(PI)), None)
+                .build(),
+        );
+        shapes.push(
+            ShapeBuilder::new()
+                .material(Arc::clone(&material))
+                .rect_yz(-1.0, 1.0, -1.0, 1.0, 1.0)
+                .build(),
+        );
+        shapes.push(
+            ShapeBuilder::new()
+                .material(Arc::clone(&material))
+                .rect_yz(-1.0, 1.0, -1.0, 1.0, 1.0)
+                .transform(None, Some(Quat::from_rot_y(PI)), None)
+                .build(),
+        );
+        shapes.push(
+            ShapeBuilder::new()
+                .material(Arc::clone(&material))
+                .rect_xz(-1.0, 1.0, -1.0, 1.0, 1.0)
+                .build(),
+        );
+        shapes.push(
+            ShapeBuilder::new()
+                .material(Arc::clone(&material))
+                .rect_xz(-1.0, 1.0, -1.0, 1.0, 1.0)
+                .transform(None, Some(Quat::from_rot_x(PI)), None)
+                .build(),
+        );
+
+        Cube { shapes }
+    }
+}
+
+impl Shape for Cube {
+    fn hit(&self, ray: &Ray, t0: f64, t1: f64) -> Option<HitInfo> {
+        self.shapes.hit(ray, t0, t1)
     }
 }

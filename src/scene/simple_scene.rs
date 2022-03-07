@@ -8,12 +8,24 @@ pub struct SimpleScene {
 impl SimpleScene {
     pub fn new() -> Self {
         let mut world = ShapeList::new();
+        // world.push(
+        //     ShapeBuilder::new()
+        //         .image_texture("resources/shivaduke.jpg", (5.0, 5.0))
+        //         .lambertian()
+        //         .sphere(Float3::zero(), 1.0)
+        //         .transform(Some(Float3::new(1.0, 1.0, 1.0)), Some(Quat::from_rot_x(0.25 * PI)),Some(Float3::new(0.5, 2.0, 1.0)))
+        //         .build(),
+        // );
         world.push(
             ShapeBuilder::new()
-                .image_texture("resources/shivaduke.jpg", (5.0, 5.0))
-                .lambertian()
-                .sphere(Float3::zero(), 1.0)
-                .transform(Float3::new(1.0, 1.0, 1.0), Quat::unit())
+                .image_texture("resources/shivaduke.jpg", (1.0, 1.0))
+                .diffuse_light(2.0)
+                .cube()
+                .transform(
+                    Some(Float3::new(1.0, 1.0, 1.0)),
+                    Some(Quat::from_rot_x(-0.25 * PI)),
+                    Some(Float3::new(0.5, 1.5, 0.5)),
+                )
                 .build(),
         );
 
@@ -23,26 +35,18 @@ impl SimpleScene {
             Arc::new(Lambertian {
                 albedo: Box::new(CheckerTexture::new(
                     Box::new(ColorTexture::new(Color::new(0.8, 0.8, 0.8))),
-                    Box::new(ColorTexture::new(Color::new(0.8, 0.0, 0.0))),
-                    4.0,
+                    Box::new(ColorTexture::new(Color::new(0.1, 0.1, 0.1))),
+                    2.0,
                 )),
             }),
         )));
-
-        world.push(
-            ShapeBuilder::new()
-                .color_texture(Color::full(1.1))
-                .diffuse_light()
-                .rect_xy(0.0, 1.0, 0.1, 1.0, -2.0)
-                .build(),
-        );
 
         Self { world }
     }
 
     fn background_color(&self, d: Float3) -> Color {
         let t = 0.5 * (d.normalize().y() + 1.0);
-        Color::one().lerp(Color::new(0.5, 0.7, 1.0), t) * 0.5
+        Color::one().lerp(Color::new(0.5, 0.7, 1.0), t) * 0.0
     }
 }
 
@@ -191,11 +195,12 @@ impl Material for Dielectric {
 
 pub struct DiffuseLight {
     emit: Box<dyn Texture>,
+    intensity: f64,
 }
 
 impl DiffuseLight {
-    pub fn new(emit: Box<dyn Texture>) -> Self {
-        Self { emit }
+    pub fn new(emit: Box<dyn Texture>, intensity: f64) -> Self {
+        Self { emit, intensity }
     }
 }
 
@@ -205,7 +210,7 @@ impl Material for DiffuseLight {
     }
 
     fn emited(&self, _ray: &Ray, hit: &HitInfo) -> Color {
-        self.emit.value(hit.u, hit.v, hit.p)
+        self.emit.value(hit.u, hit.v, hit.p) * self.intensity
     }
 }
 
