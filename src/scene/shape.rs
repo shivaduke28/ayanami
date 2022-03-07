@@ -94,6 +94,84 @@ impl Shape for ShapeList {
     }
 }
 
+pub enum RectAxisType {
+    XY,
+    XZ,
+    YZ,
+}
+
+pub struct Rect {
+    x0: f64,
+    x1: f64,
+    y0: f64,
+    y1: f64,
+    k: f64,
+    axis: RectAxisType,
+    material: Arc<dyn Material>,
+}
+
+impl Rect {
+    pub fn new(
+        x0: f64,
+        x1: f64,
+        y0: f64,
+        y1: f64,
+        k: f64,
+        axis: RectAxisType,
+        material: Arc<dyn Material>,
+    ) -> Self {
+        Self {
+            x0,
+            x1,
+            y0,
+            y1,
+            k,
+            axis,
+            material,
+        }
+    }
+}
+
+impl Shape for Rect {
+    fn hit(&self, ray: &Ray, t0: f64, t1: f64) -> Option<HitInfo> {
+        let mut origin = ray.origin;
+        let mut direction = ray.direction;
+        let mut axis = Vec3::zaxis();
+        match self.axis {
+            RectAxisType::XY => {}
+            RectAxisType::XZ => {
+                origin = Float3::new(origin.x(), origin.z(), origin.y());
+                direction = Float3::new(direction.x(), direction.z(), direction.y());
+                axis = Float3::yaxis()
+            }
+            RectAxisType::YZ => {
+                origin = Float3::new(origin.y(), origin.z(), origin.x());
+                direction = Float3::new(direction.y(), direction.z(), direction.x());
+                axis = Float3::xaxis()
+            }
+        }
+
+        let t = (self.k - origin.z()) / direction.z();
+        if t < t0 || t > t1 {
+            return None;
+        }
+        let x = origin.x() + t * direction.x();
+        let y = origin.y() + t * direction.y();
+        if x < self.x0 || x > self.x1 || y < self.y0 || y > self.y1 {
+            return None;
+        }
+
+        Some(HitInfo::new(
+            t,
+            ray.at(t),
+            axis,
+            Arc::clone(&self.material),
+            (x - self.x0) / (self.x1 - self.x0),
+            (y - self.y0) / (self.y1 - self.y0),
+        ))
+    }
+}
+
 pub struct ShapeBuilder {
     texture: Option<Box<dyn Texture>>,
     material: Option<Arc<dyn Material>>,
@@ -142,8 +220,59 @@ impl ShapeBuilder {
         self.shape.unwrap()
     }
 
+    pub fn color_texture(mut self, color: Color) -> Self {
+        self.texture = Some(Box::new(ColorTexture::new(color)));
+        self
+    }
+
     pub fn image_texture(mut self, path: &str, scale: (f64, f64)) -> Self {
         self.texture = Some(Box::new(ImageTexture::new(path, scale)));
+        self
+    }
+
+    pub fn diffuse_light(mut self) -> Self {
+        self.material = Some(Arc::new(DiffuseLight::new(self.texture.unwrap())));
+        self.texture = None;
+        self
+    }
+
+    pub fn rect_xy(mut self, x0: f64, x1: f64, y0: f64, y1: f64, k: f64) -> Self {
+        self.shape = Some(Box::new(Rect::new(
+            x0,
+            x1,
+            y0,
+            y1,
+            k,
+            RectAxisType::XY,
+            self.material.unwrap(),
+        )));
+        self.material = None;
+        self
+    }
+    pub fn rect_xz(mut self, x0: f64, x1: f64, y0: f64, y1: f64, k: f64) -> Self {
+        self.shape = Some(Box::new(Rect::new(
+            x0,
+            x1,
+            y0,
+            y1,
+            k,
+            RectAxisType::XZ,
+            self.material.unwrap(),
+        )));
+        self.material = None;
+        self
+    }
+    pub fn rect_yz(mut self, x0: f64, x1: f64, y0: f64, y1: f64, k: f64) -> Self {
+        self.shape = Some(Box::new(Rect::new(
+            x0,
+            x1,
+            y0,
+            y1,
+            k,
+            RectAxisType::YZ,
+            self.material.unwrap(),
+        )));
+        self.material = None;
         self
     }
 }

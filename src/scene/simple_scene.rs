@@ -16,14 +16,21 @@ impl SimpleScene {
                 (10.0, 10.0),
             )))),
         )));
-        world.push(Box::new(Sphere::new(
-            Float3::new(-0.6, 0.0, -1.0),
-            0.5,
-            Arc::new(Metal::new(
-                Box::new(ColorTexture::new(Color::new(0.5, 0.5, 0.5))),
-                0.5,
-            )),
-        )));
+        // world.push(Box::new(Sphere::new(
+        //     Float3::new(-0.6, 0.0, -1.0),
+        //     0.5,
+        //     Arc::new(Metal::new(
+        //         Box::new(ColorTexture::new(Color::new(0.5, 0.5, 0.5))),
+        //         0.5,
+        //     )),
+        // )));
+        world.push(
+            ShapeBuilder::new()
+                .color_texture(Color::full(0.8))
+                .diffuse_light()
+                .sphere(Float3::new(-0.6, 0.0, -1.0), 0.4)
+                .build(),
+        );
         // world.push(Box::new(Sphere::new(
         //     Float3::new(-0.6, 0.0, -1.0),
         //     -0.45,
@@ -49,35 +56,46 @@ impl SimpleScene {
             }),
         )));
 
+        world.push(
+            ShapeBuilder::new()
+                .color_texture(Color::full(1.1))
+                .diffuse_light()
+                .rect_xy(0.0, 1.0, 0.1, 1.0, -2.0)
+                .build(),
+        );
+
         Self { world }
     }
 
     fn background_color(&self, d: Float3) -> Color {
         let t = 0.5 * (d.normalize().y() + 1.0);
-        Color::one().lerp(Color::new(0.5, 0.7, 1.0), t)
+        Color::one().lerp(Color::new(0.5, 0.7, 1.0), t) * 0.0
     }
 }
 
 impl SceneWithDepth for SimpleScene {
     fn camera(&self) -> Camera {
-        Camera::new(
-            Float3::new(4.0, 0.0, 0.0),
-            Float3::new(0.0, 2.0, 0.0),
-            Float3::new(-2.0, -1.0, -1.0),
+        Camera::from_lookat(
+            Vec3::new(7.0, 2.0, 3.0),
+            Vec3::zero(),
+            Vec3::yaxis(),
+            20.0,
+            self.aspect(),
         )
     }
 
     fn trace(&self, ray: Ray, depth: usize) -> Color {
         if let Some(hit) = self.world.hit(&ray, 0.001, f64::MAX) {
+            let emitted = hit.m.emited(&ray, &hit);
             let scatter_result = if depth > 0 {
                 hit.m.scatter(&ray, &hit)
             } else {
                 None
             };
             if let Some(scatter_info) = scatter_result {
-                self.trace(scatter_info.ray, depth - 1) * scatter_info.albedo
+                emitted + self.trace(scatter_info.ray, depth - 1) * scatter_info.albedo
             } else {
-                Color::zero()
+                emitted
             }
         } else {
             self.background_color(ray.direction)
@@ -106,6 +124,9 @@ pub trait Texture: Sync + Send {
 
 pub trait Material: Sync + Send {
     fn scatter(&self, ray: &Ray, hit: &HitInfo) -> Option<ScatterInfo>;
+    fn emited(&self, _ray: &Ray, _hit: &HitInfo) -> Color {
+        Color::zero()
+    }
 }
 
 pub struct ScatterInfo {
@@ -192,6 +213,26 @@ impl Material for Dielectric {
             }
         }
         Some(ScatterInfo::new(Ray::new(hit.p, reflected), Color::one()))
+    }
+}
+
+pub struct DiffuseLight {
+    emit: Box<dyn Texture>,
+}
+
+impl DiffuseLight {
+    pub fn new(emit: Box<dyn Texture>) -> Self {
+        Self { emit }
+    }
+}
+
+impl Material for DiffuseLight {
+    fn scatter(&self, _ray: &Ray, _hit: &HitInfo) -> Option<ScatterInfo> {
+        None
+    }
+
+    fn emited(&self, _ray: &Ray, hit: &HitInfo) -> Color {
+        self.emit.value(hit.u, hit.v, hit.p)
     }
 }
 
