@@ -40,7 +40,11 @@ impl SimpleScene {
             Float3::new(0.0, -100.5, -1.0),
             100.0,
             Arc::new(Lambertian {
-                albedo: Box::new(ColorTexture::new(Color::new(0.8, 0.8, 0.0))),
+                albedo: Box::new(CheckerTexture::new(
+                    Box::new(ColorTexture::new(Color::new(0.8, 0.8, 0.8))),
+                    Box::new(ColorTexture::new(Color::new(0.8, 0.0,0.0))),
+                    10.0,
+                )),
             }),
         )));
 
@@ -210,7 +214,30 @@ impl ColorTexture {
 }
 
 impl Texture for ColorTexture {
-    fn value(&self, u: f64, v: f64, p: Float3) -> Color {
+    fn value(&self, _: f64, _: f64, _: Float3) -> Color {
         self.color
+    }
+}
+
+pub struct CheckerTexture {
+    odd: Box<dyn Texture>,
+    even: Box<dyn Texture>,
+    freq: f64,
+}
+
+impl CheckerTexture {
+    pub fn new(odd: Box<dyn Texture>, even: Box<dyn Texture>, freq: f64) -> Self {
+        Self { odd, even, freq }
+    }
+}
+
+impl Texture for CheckerTexture {
+    fn value(&self, u: f64, v: f64, p: Float3) -> Color {
+        let sines = p.iter().fold(1.0, |acc, x| acc * (x * self.freq).sin());
+        if sines < 0.0 {
+            self.odd.value(u, v, p)
+        } else {
+            self.even.value(u, v, p)
+        }
     }
 }
