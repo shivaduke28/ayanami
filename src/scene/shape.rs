@@ -19,6 +19,15 @@ impl Sphere {
             material,
         }
     }
+
+    pub fn uv(p: Float3) -> (f64, f64) {
+        let phi = p.z().atan2(p.x());
+        let theta = p.y().asin();
+        (
+            1.0 - (phi + PI) * 0.5 * FRAC_1_PI,
+            (theta + PI * 0.5) * FRAC_1_PI,
+        )
+    }
 }
 
 impl Shape for Sphere {
@@ -35,8 +44,8 @@ impl Shape for Sphere {
             if t0 < t && t < t1 {
                 let p = ray.at(t);
                 let n = (p - self.center) / self.radius;
-                // todo: uv
-                let hit = HitInfo::new(t, p, n, Arc::clone(&self.material), 0.0, 0.0);
+                let (u, v) = Self::uv(p);
+                let hit = HitInfo::new(t, p, n, Arc::clone(&self.material), u, v);
                 return Some(hit);
             }
 
@@ -44,8 +53,8 @@ impl Shape for Sphere {
             if t0 < t && t < t1 {
                 let p = ray.at(t);
                 let n = (p - self.center) / self.radius;
-                // todo: uv
-                let hit = HitInfo::new(t, p, n, Arc::clone(&self.material), 0.0, 0.0);
+                let (u, v) = Self::uv(p);
+                let hit = HitInfo::new(t, p, n, Arc::clone(&self.material), u, v);
                 return Some(hit);
             }
         }
@@ -131,5 +140,10 @@ impl ShapeBuilder {
 
     pub fn build(self) -> Box<dyn Shape> {
         self.shape.unwrap()
+    }
+
+    pub fn image_texture(mut self, path: &str, scale: (f64, f64)) -> Self {
+        self.texture = Some(Box::new(ImageTexture::new(path, scale)));
+        self
     }
 }

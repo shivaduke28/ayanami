@@ -11,9 +11,10 @@ impl SimpleScene {
         world.push(Box::new(Sphere::new(
             Float3::new(0.6, 0.0, -1.0),
             0.5,
-            Arc::new(Lambertian::new(Box::new(ColorTexture::new(Color::new(
-                0.1, 0.2, 0.5,
-            ))))),
+            Arc::new(Lambertian::new(Box::new(ImageTexture::new(
+                "resources/shivaduke.jpg",
+                (10.0, 10.0),
+            )))),
         )));
         world.push(Box::new(Sphere::new(
             Float3::new(-0.6, 0.0, -1.0),
@@ -42,7 +43,7 @@ impl SimpleScene {
             Arc::new(Lambertian {
                 albedo: Box::new(CheckerTexture::new(
                     Box::new(ColorTexture::new(Color::new(0.8, 0.8, 0.8))),
-                    Box::new(ColorTexture::new(Color::new(0.8, 0.0,0.0))),
+                    Box::new(ColorTexture::new(Color::new(0.8, 0.0, 0.0))),
                     10.0,
                 )),
             }),
@@ -239,5 +240,45 @@ impl Texture for CheckerTexture {
         } else {
             self.even.value(u, v, p)
         }
+    }
+}
+
+pub struct ImageTexture {
+    pixels: Vec<Color>,
+    width: usize,
+    height: usize,
+    scale: (f64, f64),
+}
+
+impl ImageTexture {
+    pub fn new(path: &str, scale: (f64, f64)) -> Self {
+        let rgbimg = image::open(path).unwrap().to_rgb8();
+        let (w, h) = rgbimg.dimensions();
+        let mut image = vec![Color::zero(); (w * h) as usize];
+        for (i, (_, _, pixel)) in image.iter_mut().zip(rgbimg.enumerate_pixels()) {
+            *i = Color::from_rgb(pixel[0], pixel[1], pixel[2]);
+        }
+        Self {
+            pixels: image,
+            width: w as usize,
+            height: h as usize,
+            scale: scale,
+        }
+    }
+
+    fn sample(&self, u: i64, v: i64) -> Color {
+        let tu = (u as usize).clamp(0, self.width - 1);
+        let tv = (v as usize).clamp(0, self.height - 1);
+        self.pixels[tu + self.width * tv]
+    }
+}
+
+impl Texture for ImageTexture {
+    fn value(&self, u: f64, v: f64, _p: Float3) -> Color {
+        let u = (u * self.scale.0).fract();
+        let v = (v * self.scale.1).fract();
+        let x = (u * self.width as f64) as i64;
+        let y = (v * self.height as f64) as i64;
+        self.sample(x, y)
     }
 }
