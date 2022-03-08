@@ -150,6 +150,10 @@ impl Shape for Rect {
             }
         }
 
+        if direction.dot(&axis) > 0.0 {
+            return None;
+        }
+
         let t = (self.k - origin.z) / direction.z;
         if t < t0 || t > t1 {
             return None;
@@ -332,13 +336,13 @@ impl Cube {
         shapes.push(
             ShapeBuilder::new()
                 .material(Arc::clone(&material))
-                .rect_xy(-1.0, 1.0, -1.0, 1.0, 1.0)
+                .rect_xy(-0.5, 0.5, -0.5, 0.5, 0.5)
                 .build(),
         );
         shapes.push(
             ShapeBuilder::new()
                 .material(Arc::clone(&material))
-                .rect_xy(-1.0, 1.0, -1.0, 1.0, 1.0)
+                .rect_xy(-0.5, 0.5, -0.5, 0.5, 0.5)
                 .build_transform()
                 .rotate(Quat::from_axis_angle(&Float3::y_axis(), PI))
                 .build(),
@@ -346,13 +350,13 @@ impl Cube {
         shapes.push(
             ShapeBuilder::new()
                 .material(Arc::clone(&material))
-                .rect_yz(-1.0, 1.0, -1.0, 1.0, 1.0)
+                .rect_yz(-0.5, 0.5, -0.5, 0.5, 0.5)
                 .build(),
         );
         shapes.push(
             ShapeBuilder::new()
                 .material(Arc::clone(&material))
-                .rect_yz(-1.0, 1.0, -1.0, 1.0, 1.0)
+                .rect_yz(-0.5, 0.5, -0.5, 0.5, 0.5)
                 .build_transform()
                 .rotate(Quat::from_axis_angle(&Float3::y_axis(), PI))
                 .build(),
@@ -360,13 +364,13 @@ impl Cube {
         shapes.push(
             ShapeBuilder::new()
                 .material(Arc::clone(&material))
-                .rect_xz(-1.0, 1.0, -1.0, 1.0, 1.0)
+                .rect_xz(-0.5, 0.5, -0.5, 0.5, 0.5)
                 .build(),
         );
         shapes.push(
             ShapeBuilder::new()
                 .material(Arc::clone(&material))
-                .rect_xz(-1.0, 1.0, -1.0, 1.0, 1.0)
+                .rect_xz(-0.5, 0.5, -0.5, 0.5, 0.5)
                 .build(),
         );
 

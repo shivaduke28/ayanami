@@ -7,6 +7,6 @@ use crate::rayt::*;
 use crate::scene::*;
 
 fn main() {
-    render_aa(SimpleScene::new());
+    render_aa(CornelBoxScene::new());
 }
 

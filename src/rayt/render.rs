@@ -7,7 +7,7 @@ use std::{fs, path::Path};
 const OUTPUT_FILE_NAME: &str = "render.png";
 const BACKUP_FILE_NAME: &str = "render_bak.png";
 const IMAGE_WIDTH: u32 = 200;
-const IMAGE_HEIGHT: u32 = 100;
+const IMAGE_HEIGHT: u32 = 200;
 const SAMPLES_PER_PIXEL: usize = 10;
 const GAMMA_FACTOR: f64 = 2.2;
 const MAX_RAY_BOUNCE_DEPTH: usize = 50;

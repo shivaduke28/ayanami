@@ -1,5 +1,4 @@
 use crate::rayt::*;
-use nalgebra as na;
 
 #[derive(Debug)]
 pub struct Camera {
@@ -24,7 +23,7 @@ impl Camera {
     pub fn from_lookat(
         origin: Float3,
         lookat: Float3,
-        vup: na::Unit<Float3>,
+        vup: Float3,
         vfov: f64,
         aspect: f64,
     ) -> Self {
