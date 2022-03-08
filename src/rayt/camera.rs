@@ -1,16 +1,18 @@
 use crate::rayt::*;
+use nalgebra as na;
+
 #[derive(Debug)]
 pub struct Camera {
-    pub origin: Point3,
-    pub u: Vec3, // left bottom -> right bottom
-    pub v: Vec3, // left bottom -> left up
-    pub w: Vec3, // world origin -> left bottom
+    pub origin: Float3,
+    pub u: Float3, // left bottom -> right bottom
+    pub v: Float3, // left bottom -> left up
+    pub w: Float3, // world origin -> left bottom
 }
 
 impl Camera {
-    pub fn new(u: Vec3, v: Vec3, w: Vec3) -> Self {
+    pub fn new(u: Float3, v: Float3, w: Float3) -> Self {
         Self {
-            origin: Point3::zero(),
+            origin: Float3::zeros(),
             u,
             v,
             w,
@@ -19,12 +21,18 @@ impl Camera {
 
     // vfov = vertical hov
     // aspect = w / h
-    pub fn from_lookat(origin: Point3, lookat: Point3, vup: Vec3, vfov: f64, aspect: f64) -> Self {
+    pub fn from_lookat(
+        origin: Float3,
+        lookat: Float3,
+        vup: na::Unit<Float3>,
+        vfov: f64,
+        aspect: f64,
+    ) -> Self {
         let halfh = (vfov.to_radians() * 0.5).tan();
         let halfw = aspect * halfh;
         let w = (origin - lookat).normalize(); // lookat -> camera origin
-        let u = vup.cross(w).normalize();
-        let v = w.cross(u);
+        let u = vup.cross(&w);
+        let v = w.cross(&u);
 
         let uw = u * halfw;
         let vh = v * halfh;

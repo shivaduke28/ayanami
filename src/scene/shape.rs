@@ -1,5 +1,7 @@
 use crate::rayt::*;
 use crate::scene::*;
+use na::vector;
+use nalgebra as na;
 
 pub trait Shape: Sync {
     fn hit(&self, ray: &Ray, t0: f64, t1: f64) -> Option<HitInfo>;
@@ -21,8 +23,8 @@ impl Sphere {
     }
 
     pub fn uv(p: Float3) -> (f64, f64) {
-        let phi = p.z().atan2(p.x());
-        let theta = p.y().asin();
+        let phi = p.z.atan2(p.x);
+        let theta = p.y.asin();
         (
             1.0 - (phi + PI) * 0.5 * FRAC_1_PI,
             (theta + PI * 0.5) * FRAC_1_PI,
@@ -34,9 +36,9 @@ impl Shape for Sphere {
     fn hit(&self, ray: &Ray, t0: f64, t1: f64) -> Option<HitInfo> {
         let oc = ray.origin - self.center;
         let d = ray.direction;
-        let a = d.length_squared();
-        let b = 2.0 * d.dot(oc);
-        let c = oc.length_squared() - self.radius * self.radius;
+        let a = d.norm_squared();
+        let b = 2.0 * d.dot(&oc);
+        let c = oc.norm_squared() - self.radius * self.radius;
         let d = b * b - 4.0 * a * c;
         if d > 0.0 {
             let d_sqrt = d.sqrt();
@@ -136,27 +138,27 @@ impl Shape for Rect {
     fn hit(&self, ray: &Ray, t0: f64, t1: f64) -> Option<HitInfo> {
         let mut origin = ray.origin;
         let mut direction = ray.direction;
-        let mut axis = Vec3::zaxis();
+        let mut axis = Float3::z_axis();
         match self.axis {
             RectAxisType::XY => {}
             RectAxisType::XZ => {
-                origin = Float3::new(origin.x(), origin.z(), origin.y());
-                direction = Float3::new(direction.x(), direction.z(), direction.y());
-                axis = Float3::yaxis()
+                origin = vector![origin.x, origin.z, origin.y];
+                direction = vector![direction.x, direction.z, direction.y];
+                axis = Float3::y_axis()
             }
             RectAxisType::YZ => {
-                origin = Float3::new(origin.y(), origin.z(), origin.x());
-                direction = Float3::new(direction.y(), direction.z(), direction.x());
-                axis = Float3::xaxis()
+                origin = vector![origin.y, origin.z, origin.x];
+                direction = vector![direction.y, direction.z, direction.x];
+                axis = Float3::x_axis()
             }
         }
 
-        let t = (self.k - origin.z()) / direction.z();
+        let t = (self.k - origin.z) / direction.z;
         if t < t0 || t > t1 {
             return None;
         }
-        let x = origin.x() + t * direction.x();
-        let y = origin.y() + t * direction.y();
+        let x = origin.x + t * direction.x;
+        let y = origin.y + t * direction.y;
         if x < self.x0 || x > self.x1 || y < self.y0 || y > self.y1 {
             return None;
         }
@@ -164,7 +166,7 @@ impl Shape for Rect {
         Some(HitInfo::new(
             t,
             ray.at(t),
-            axis,
+            axis.into_inner(),
             Arc::clone(&self.material),
             (x - self.x0) / (self.x1 - self.x0),
             (y - self.y0) / (self.y1 - self.y0),
@@ -188,7 +190,7 @@ impl ShapeBuilder {
     }
 
     // texture
-    pub fn color_texture(mut self, color: Color) -> Self {
+    pub fn color_texture(mut self, color: Float3) -> Self {
         self.texture = Some(Box::new(ColorTexture::new(color)));
         self
     }
@@ -205,7 +207,10 @@ impl ShapeBuilder {
     }
 
     pub fn diffuse_light(mut self, intensity: f64) -> Self {
-        self.material = Some(Arc::new(DiffuseLight::new(self.texture.unwrap(), intensity)));
+        self.material = Some(Arc::new(DiffuseLight::new(
+            self.texture.unwrap(),
+            intensity,
+        )));
         self.texture = None;
         self
     }
@@ -326,20 +331,20 @@ impl Transform {
     }
 
     pub fn translate(mut self, position: Float3) -> Self {
-        let p = self.position.unwrap_or(Float3::zero());
+        let p = self.position.unwrap_or(Float3::zeros());
         self.position = Some(p + position);
         self
     }
 
     pub fn rotate(mut self, rotation: Quat) -> Self {
-        let r = self.rotation.unwrap_or(Quat::unit());
+        let r = self.rotation.unwrap_or(Quat::identity());
         self.rotation = Some(rotation * r);
         self
     }
 
     pub fn scale(mut self, scale: Float3) -> Self {
-        let s = self.scale.unwrap_or(Float3::one());
-        self.scale = Some(s * scale);
+        let s = self.scale.unwrap_or(float3::one());
+        self.scale = Some(s.component_mul(&scale));
         self
     }
 
@@ -350,13 +355,13 @@ impl Transform {
             origin -= pos;
         }
         if let Some(rot) = self.rotation {
-            let rot_inv = rot.conj();
-            origin = rot_inv.rotate(origin);
-            direction = rot_inv.rotate(direction);
+            let rot_inv = rot.conjugate();
+            origin = rot_inv * origin;
+            direction = rot_inv * (direction);
         }
         if let Some(scale) = self.scale {
-            origin = origin / scale;
-            direction = direction / scale;
+            origin.component_div_assign(&scale);
+            direction.component_div_assign(&scale);
         }
         Ray::new(origin, direction)
     }
@@ -364,10 +369,10 @@ impl Transform {
     fn object_to_world(&self, position: Float3) -> Float3 {
         let mut result = position;
         if let Some(scale) = self.scale {
-            result = result * scale;
+            result = result.component_mul(&scale);
         }
         if let Some(rotation) = self.rotation {
-            result = rotation.rotate(result);
+            result = rotation * result;
         }
         if let Some(pos) = self.position {
             result += pos;
@@ -379,10 +384,10 @@ impl Transform {
     fn object_to_world_normal(&self, normal: Float3) -> Float3 {
         let mut result = normal;
         if let Some(scale) = self.scale {
-            result = result * scale;
+            result = result.component_mul(&scale);
         }
         if let Some(rotation) = self.rotation {
-            result = rotation.rotate(result);
+            result = rotation * result;
         }
         result.normalize()
     }
@@ -418,7 +423,11 @@ impl Cube {
             ShapeBuilder::new()
                 .material(Arc::clone(&material))
                 .rect_xy(-1.0, 1.0, -1.0, 1.0, 1.0)
-                .transform(None, Some(Quat::from_rot_y(PI)), None)
+                .transform(
+                    None,
+                    Some(Quat::from_axis_angle(&Float3::y_axis(), PI)),
+                    None,
+                )
                 .build(),
         );
         shapes.push(
@@ -431,7 +440,11 @@ impl Cube {
             ShapeBuilder::new()
                 .material(Arc::clone(&material))
                 .rect_yz(-1.0, 1.0, -1.0, 1.0, 1.0)
-                .transform(None, Some(Quat::from_rot_y(PI)), None)
+                .transform(
+                    None,
+                    Some(Quat::from_axis_angle(&Float3::y_axis(), PI)),
+                    None,
+                )
                 .build(),
         );
         shapes.push(
@@ -444,7 +457,11 @@ impl Cube {
             ShapeBuilder::new()
                 .material(Arc::clone(&material))
                 .rect_xz(-1.0, 1.0, -1.0, 1.0, 1.0)
-                .transform(None, Some(Quat::from_rot_x(PI)), None)
+                .transform(
+                    None,
+                    Some(Quat::from_axis_angle(&Float3::x_axis(), PI)),
+                    None,
+                )
                 .build(),
         );
 

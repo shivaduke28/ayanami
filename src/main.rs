@@ -9,3 +9,4 @@ use crate::scene::*;
 fn main() {
     render_aa(SimpleScene::new());
 }
+

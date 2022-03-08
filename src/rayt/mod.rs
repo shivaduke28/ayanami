@@ -3,16 +3,21 @@ pub use std::f64::consts::PI;
 pub const PI2: f64 = PI * 2.0;
 pub const EPS: f64 = 1e-6;
 
-mod float3;
-mod quat;
-mod ray;
+use na::vector;
+use nalgebra as na;
+
 mod camera;
-mod window;
+pub(crate) mod color;
+pub(crate) mod float3;
+pub(crate) mod math;
+mod ray;
 mod render;
-pub use self::float3::{Color, Float3, Point3, Vec3};
-pub use self::quat::Quat;
-pub use self::ray::Ray;
+mod window;
+
 pub use self::camera::Camera;
-pub use self::window::*;
+pub use self::color::*;
+pub use self::math::{Float3, Quat};
+pub use self::ray::Ray;
 pub use self::render::*;
+pub use self::window::*;
 pub use std::sync::Arc;

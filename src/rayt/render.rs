@@ -22,7 +22,7 @@ pub fn backup() {
 
 pub trait Scene {
     fn camera(&self) -> Camera;
-    fn trace(&self, ray: Ray) -> Color;
+    fn trace(&self, ray: Ray) -> Float3;
     fn width(&self) -> u32 {
         IMAGE_WIDTH
     }
@@ -39,7 +39,7 @@ pub trait Scene {
 
 pub trait SceneWithDepth {
     fn camera(&self) -> Camera;
-    fn trace(&self, ray: Ray, depth: usize) -> Color;
+    fn trace(&self, ray: Ray, depth: usize) -> Float3;
     fn width(&self) -> u32 {
         IMAGE_WIDTH
     }
@@ -67,7 +67,7 @@ pub fn render(scene: impl Scene + Sync) {
             let u = *x as f64 / (scene.width() - 1) as f64;
             let v = (scene.height() - *y - 1) as f64 / (scene.height() - 1) as f64;
             let ray = camera.ray(u, v);
-            let rgb = scene.trace(ray).to_rgb();
+            let rgb = color::float3_to_rgb(scene.trace(ray));
             pixel[0] = rgb[0];
             pixel[1] = rgb[1];
             pixel[2] = rgb[2];
@@ -86,16 +86,19 @@ pub fn render_aa(scene: impl SceneWithDepth + Sync) {
         .collect::<Vec<(u32, u32, &mut Rgb<u8>)>>()
         .par_iter_mut()
         .for_each(|(x, y, pixel)| {
-            let mut pixel_color = (0..scene.spp()).into_iter().fold(Color::zero(), |acc, _| {
-                let [rx, ry, _] = Float3::random().to_array();
-                let u = (*x as f64 + rx) / (scene.width() - 1) as f64;
-                let v = ((scene.height() - *y - 1) as f64 + ry) / (scene.height() - 1) as f64;
-                let ray = camera.ray(u, v);
-                acc + scene.trace(ray, MAX_RAY_BOUNCE_DEPTH)
-            });
+            let mut pixel_color = (0..scene.spp())
+                .into_iter()
+                .fold(Float3::zeros(), |acc, _| {
+                    let rx = rand::random::<f64>();
+                    let ry = rand::random::<f64>();
+                    let u = (*x as f64 + rx) / (scene.width() - 1) as f64;
+                    let v = ((scene.height() - *y - 1) as f64 + ry) / (scene.height() - 1) as f64;
+                    let ray = camera.ray(u, v);
+                    acc + scene.trace(ray, MAX_RAY_BOUNCE_DEPTH)
+                });
 
             pixel_color /= scene.spp() as f64;
-            let rgb = pixel_color.degamma(GAMMA_FACTOR).to_rgb();
+            let rgb = color::float3_to_rgb(color::degamma(pixel_color, GAMMA_FACTOR));
             pixel[0] = rgb[0];
             pixel[1] = rgb[1];
             pixel[2] = rgb[2];
