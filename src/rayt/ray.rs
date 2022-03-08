@@ -15,3 +15,18 @@ impl Ray {
         self.origin + self.direction * t
     }
 }
+
+pub struct HitInfo {
+    pub t: f64,
+    pub p: Float3,
+    pub n: Float3,
+    pub m: Arc<dyn Material>,
+    pub u: f64,
+    pub v: f64,
+}
+
+impl HitInfo {
+    pub fn new(t: f64, p: Float3, n: Float3, m: Arc<dyn Material>, u: f64, v: f64) -> Self {
+        HitInfo { t, p, n, m, u, v }
+    }
+}

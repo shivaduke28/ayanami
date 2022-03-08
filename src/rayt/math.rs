@@ -39,3 +39,12 @@ pub fn random_in_unit_sphere() -> Float3 {
         }
     }
 }
+
+pub fn schilick(ri: f64, cosine: f64) -> f64 {
+    let r0 = ((1.0 - ri) / (1.0 + ri)).powi(2);
+    r0 + (1.0 - r0) * (1.0 - cosine).powi(5)
+}
+
+pub fn schlick_lerp(f0: Float3, f90: Float3, cosine: f64) -> Float3 {
+    f0 + (f90 - f0) * (1.0 - cosine).powi(5)
+}
